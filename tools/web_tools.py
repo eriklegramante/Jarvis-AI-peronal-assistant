@@ -13,4 +13,20 @@ class WebManager:
             Use para notícias, fatos recentes ou dúvidas que não estão na sua memória."""
             return search.run(query)
             
-        return [search_web]
+        @tool
+        def read_web_page(url: str):
+            """
+            Lê o conteúdo completo de uma página web ou documentação a partir de uma URL.
+            Use esta ferramenta quando precisar analisar detalhes técnicos de um site específico.
+            """
+            from langchain_community.document_loaders import WebBaseLoader
+            
+            try:
+                loader = WebBaseLoader(url)
+                docs = loader.load()
+                # Retornamos apenas os primeiros 10.000 caracteres para não estourar o contexto
+                return docs[0].page_content[:10000]
+            except Exception as e:
+                return f"Erro ao ler a página: {e}"
+
+        return [search_web, read_web_page]
