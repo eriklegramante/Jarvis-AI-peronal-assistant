@@ -1,0 +1,12 @@
+graph TD
+    A[Usuário: Voz/Texto] --> B{Orquestrador LangChain}
+    B --> C[Memória de Curto Prazo - SQL]
+    B --> D[Busca RAG - Documentos/Fatos]
+    B --> E{Decisor de Ferramentas}
+    
+    E -->|Precisa de ação| F[Pasta /tools - Python Scripts]
+    E -->|Precisa de resposta| G[Geração de Resposta Final]
+    
+    F --> H[Resultado da Ferramenta]
+    H --> B
+    G --> I[Saída: Áudio/Texto]
