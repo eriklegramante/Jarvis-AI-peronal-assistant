@@ -1,5 +1,4 @@
 import sqlite3
-import os
 
 class JarvisBrain:
     def __init__(self, db_path="memory_store.db"):
@@ -7,7 +6,6 @@ class JarvisBrain:
         self._initialize_db()
 
     def _initialize_db(self):
-        """Cria as tabelas se não existirem."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             # Tabela para fatos sobre o usuário
@@ -29,7 +27,7 @@ class JarvisBrain:
             conn.commit()
 
     def store_fact(self, key, value):
-        """Guarda uma informação importante (ex: 'user_name', 'Legramante')."""
+        """Guarda uma informação importante (ex: 'user_name', 'Fulano')."""
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("INSERT OR REPLACE INTO user_profile (key, value) VALUES (?, ?)", (key, value))
