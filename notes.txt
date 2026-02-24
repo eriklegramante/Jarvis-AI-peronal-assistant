@@ -1,0 +1,9 @@
+Injeção de dependencia para não depender de banco de dados.
+Open Claw
+
+@staticmethod
+
+remover output de audio
+
+testes
+unitarios

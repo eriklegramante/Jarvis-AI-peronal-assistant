@@ -1,19 +1,24 @@
 import os
+import time
+import threading
+import asyncio
 from dotenv import load_dotenv
+
+#langchain imports
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+
+#modules imports
 from tools import get_all_jarvis_tools
+from speech.speaker import JarvisSpeaker
 from logs.logger import setup_logger
-import time
 
 
 load_dotenv()
+logger = setup_logger()
 
-
-manager = get_all_jarvis_tools(username="Root")
-tools_do_jarvis = get_all_jarvis_tools(username="Root") 
-
+tools_do_jarvis = get_all_jarvis_tools(username="Root")
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-3-flash-preview",
@@ -22,9 +27,8 @@ llm = ChatGoogleGenerativeAI(
 )
 
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "Você é o Jarvis, um assistente de IA sofisticado. "
-               "Não seja excessivamente formal se o usuário não gostar. "
-               "Sempre use as ferramentas para validar dados de sistema."),
+    ("system", "Você é o Jarvis, um assistente de IA britânico e sofisticado. "
+               "Sempre use as ferramentas para validar dados de sistema ou buscar na web."),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
     MessagesPlaceholder(variable_name="agent_scratchpad"),
@@ -32,7 +36,6 @@ prompt = ChatPromptTemplate.from_messages([
 
 try:
     agent = create_tool_calling_agent(llm, tools_do_jarvis, prompt)
-    
     debug_status = os.getenv("DEBUG_MODE", "False") == "True"
 
     agent_executor = AgentExecutor(
@@ -41,35 +44,62 @@ try:
         verbose=debug_status, 
         handle_parsing_errors=True
     )
-    print(">>> Sistemas inicializados com sucesso, senhor. Aguardando comandos.")
+    logger.info(">>> Sistemas inicializados com sucesso, senhor.")
 except Exception as e:
-    print(f"Erro na inicialização: {e}")
+    logger.error(f"Erro crítico na inicialização: {e}")
 
-logger = setup_logger()
-start_time = time.time()
+# 4. Função Auxiliar para Voz em Background (Não trava o sistema)
+def play_voice_background(text):
+    """Executa o áudio em uma thread separada para não travar o input do usuário."""
+    try:
+        speaker = JarvisSpeaker()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(speaker.speak(text))
+        loop.close()
+    except Exception as e:
+        print(f"\n[!] Ered no áudio: {e}")
 
-logger.info("Sistemas inicializados, senhor.")
-logger.info("Enviando requisição para o Gemini-3-flash-preview...")
-logger.warning("Tentativa de acesso não autorizado detectada.")
-
-end_time = time.time()
-duration = end_time - start_time
-logger.info(f"Requisição processada em {duration:.2f} segundos.")
-
-if __name__ == "__main__":
+# 5. Loop Principal
+async def main_loop():
     historico = []
+    print("\n>>> Jarvis Online. Aguardando comandos, senhor. (CTRL+C para sair)")
+
     while True:
         try:
-            entrada = input("\nComo posso ajudar? ")
-            if entrada.lower() in ["sair", "exit"]: break
-
-            resultado = agent_executor.invoke({"input": entrada, "chat_history": historico})
+            entrada = input("\nSenhor? (Comando): ")
             
+            if entrada.lower() in ["sair", "exit", "desligar"]:
+                print("Encerrando sistemas...")
+                break
+
+            start_time = time.time()
+
+            resultado = agent_executor.invoke({
+                "input": entrada, 
+                "chat_history": historico 
+            })
+
+            duration = time.time() - start_time
+            logger.info(f"Requisição processada em {duration:.2f}s")
+
             resposta = resultado['output']
             if isinstance(resposta, list):
                 resposta = resposta[0].get('text', str(resposta))
             
             print(f"\nJARVIS: {resposta}")
-            
+
+            threading.Thread(target=play_voice_background, args=(resposta,), daemon=True).start()
+
+            historico.append(("human", entrada))
+            historico.append(("ai", resposta))
+
+        except KeyboardInterrupt:
+            print("\nProtocolo de encerramento ativado.")
+            break
         except Exception as e:
-            print(f"\n[!] Erro: {e}")
+            logger.error(f"Falha no ciclo: {e}")
+
+if __name__ == "__main__":
+    # Garante que o loop assíncrono rode corretamente
+    asyncio.run(main_loop())

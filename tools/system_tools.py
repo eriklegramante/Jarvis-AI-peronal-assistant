@@ -1,9 +1,7 @@
 from langchain_core.tools import tool
-from brain.memory_manager import JarvisBrain
 from datetime import datetime
 import os
 
-brain = JarvisBrain()
 
 class SystemManager:
     def __init__(self, username="Senhor"):
@@ -36,7 +34,7 @@ class SystemManager:
             data_atual = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
             return f"A data e hora atual (baseada no sistema) para {cidade} é: {data_atual}"
 
-        @tool
+        @tool #não está fazendo verificação real, mas é um exemplo de como você poderia implementar isso...
         def verification_user(user: str):
             """Verifica se o usuário é autorizado a usar o Jarvis."""
             # Você pode mudar "Root" para o seu nome de usuário
@@ -81,32 +79,3 @@ class SystemManager:
             get_system_info,
             get_date_time
         ]
-
-class MemoryManager:
-    def fetch_tools(self):
-        
-        @tool
-        def remember_fact(key: str, value: str):
-            """
-            Guarda uma informação importante sobre o usuário ou o sistema no banco de dados.
-            Use isso para lembrar nomes, preferências, datas de viagens ou lembretes permanentes.
-            Exemplo: key='viagem_paris', value='Junho de 2026'
-            """
-            try:
-                brain.store_fact(key, value)
-                return f"Entendido, senhor. Memorizei que {key} é {value}."
-            except Exception as e:
-                return f"Erro ao acessar meus módulos de memória: {e}"
-
-        @tool
-        def retrieve_fact(key: str):
-            """
-            Recupera uma informação guardada anteriormente na memória.
-            Use quando o usuário perguntar algo que você já deveria saber.
-            """
-            fact = brain.get_fact(key)
-            if fact:
-                return f"Minha base de dados indica: {fact}"
-            return "Não encontrei nenhum registro sobre isso em minha memória, senhor."
-
-        return [remember_fact, retrieve_fact]
