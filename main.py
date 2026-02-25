@@ -3,6 +3,8 @@ import time
 import threading
 import asyncio
 from dotenv import load_dotenv
+import re
+import pygame
 
 #langchain imports
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -13,10 +15,13 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tools import get_all_jarvis_tools
 from speech.speaker import JarvisSpeaker
 from logs.logger import setup_logger
-
+from ui.avatar import JarvisAvatar
 
 load_dotenv()
 logger = setup_logger()
+
+avatar = JarvisAvatar("ui/assets/jarvis_avatar.png")
+#avatar.start()
 
 tools_do_jarvis = get_all_jarvis_tools(username="Root")
 
@@ -48,17 +53,31 @@ try:
 except Exception as e:
     logger.error(f"Erro crítico na inicialização: {e}")
 
-# 4. Função Auxiliar para Voz em Background (Não trava o sistema)
+def chat_thread():
+    """O loop de chat agora roda aqui para não travar a interface gráfica."""
+    asyncio.run(main_loop()) 
+
+def clean_text_for_speech(text):
+    """Remove caracteres de formatação Markdown e símbolos especiais para a narração."""
+    text = text.replace("*", "")
+    text = text.replace("#", "")
+    text = text.replace("`", "")
+    text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
 def play_voice_background(text):
-    """Executa o áudio em uma thread separada para não travar o input do usuário."""
     try:
+        avatar.set_talking(True)
         speaker = JarvisSpeaker()
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(speaker.speak(text))
+        avatar.set_talking(False) 
         loop.close()
     except Exception as e:
-        print(f"\n[!] Ered no áudio: {e}")
+        avatar.set_talking(False)
+        print(f"\n[!] Erro no áudio/avatar: {e}")
 
 # 5. Loop Principal
 async def main_loop():
@@ -89,7 +108,8 @@ async def main_loop():
             
             print(f"\nJARVIS: {resposta}")
 
-            threading.Thread(target=play_voice_background, args=(resposta,), daemon=True).start()
+            texto_para_voz = clean_text_for_speech(resposta)
+            threading.Thread(target=play_voice_background, args=(texto_para_voz,), daemon=True).start()
 
             historico.append(("human", entrada))
             historico.append(("ai", resposta))
@@ -101,5 +121,18 @@ async def main_loop():
             logger.error(f"Falha no ciclo: {e}")
 
 if __name__ == "__main__":
-    # Garante que o loop assíncrono rode corretamente
-    asyncio.run(main_loop())
+    thread_jarvis = threading.Thread(target=chat_thread, daemon=True)
+    thread_jarvis.start()
+
+    running = True
+    clock = pygame.time.Clock()
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+        
+        avatar.draw()
+        clock.tick(30) # Mantém 30 FPS para economizar CPU no Ubuntu
+
+    pygame.quit()

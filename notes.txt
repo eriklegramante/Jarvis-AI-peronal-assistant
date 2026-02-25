@@ -1,9 +1,6 @@
-Injeção de dependencia para não depender de banco de dados.
-Open Claw
-
 @staticmethod
-
-remover output de audio
 
 testes
 unitarios
+
+Tempo de resposta acima do esperado, segundo logs acima de 30sec chegando a 3mn 
