@@ -17,6 +17,10 @@ class JarvisAvatar:
         self.image = pygame.transform.scale(self.image, (200, 200))
         self.rect = self.image.get_rect(center=(150, 150))
         self.is_talking = False
+    
+    def set_talking(self, talking):
+        """Método para o main.py avisar se o Jarvis está falando ou não."""
+        self.is_talking = talking
 
     def draw(self):
         self.screen.fill((0, 0, 0, 0))

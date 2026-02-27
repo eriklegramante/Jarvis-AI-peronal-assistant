@@ -16,12 +16,14 @@ from tools import get_all_jarvis_tools
 from speech.speaker import JarvisSpeaker
 from logs.logger import setup_logger
 from ui.avatar import JarvisAvatar
+from speech.listener import JarvisListener
 
 load_dotenv()
 logger = setup_logger()
 
 avatar = JarvisAvatar("ui/assets/jarvis_avatar.png")
-#avatar.start()
+
+listener = JarvisListener(model_size="tiny")  #tiny
 
 tools_do_jarvis = get_all_jarvis_tools(username="Root")
 
@@ -86,7 +88,12 @@ async def main_loop():
 
     while True:
         try:
-            entrada = input("\nSenhor? (Comando): ")
+            entrada = listener.listen()
+        
+            if not entrada:
+                continue # Se não ouviu nada, volta a ouvir
+
+            print(f"VOCÊ: {entrada}")
             
             if entrada.lower() in ["sair", "exit", "desligar"]:
                 print("Encerrando sistemas...")
@@ -133,6 +140,6 @@ if __name__ == "__main__":
                 running = False
         
         avatar.draw()
-        clock.tick(30) # Mantém 30 FPS para economizar CPU no Ubuntu
+        clock.tick(30) 
 
     pygame.quit()
