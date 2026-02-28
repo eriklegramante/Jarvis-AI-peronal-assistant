@@ -24,7 +24,6 @@ class WebManager:
             try:
                 loader = WebBaseLoader(url)
                 docs = loader.load()
-                # Retornamos apenas os primeiros 10.000 caracteres para não estourar o contexto
                 return docs[0].page_content[:10000]
             except Exception as e:
                 return f"Erro ao ler a página: {e}"

@@ -1,8 +1,12 @@
-@staticmethod
-
 testes
 unitarios
 
 Tempo de resposta acima do esperado, segundo logs acima de 30sec chegando a 3mn 
 
 Obs: readme e requiremtents precisam ser atualizados, caso você leia esse recado, não utilize esses dois como base, estou trazendo atualizações, infelizmente sou clt e não tenho tempo para dedicar 100% no projeto xD
+
+Atualizar variaveis para o inglês, acabou que misturei portugues e ingles....
+
+Atualizar avatar Jarvis 
+
+Colocar sons ao chamar Jarvis

@@ -22,9 +22,7 @@ load_dotenv()
 logger = setup_logger()
 
 avatar = JarvisAvatar("ui/assets/jarvis_avatar.png")
-
-listener = JarvisListener(model_size="tiny")  #tiny
-
+listener = JarvisListener(model_size="tiny")
 tools_do_jarvis = get_all_jarvis_tools(username="Root")
 
 llm = ChatGoogleGenerativeAI(
@@ -75,23 +73,34 @@ def play_voice_background(text):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(speaker.speak(text))
-        avatar.set_talking(False) 
         loop.close()
     except Exception as e:
         avatar.set_talking(False)
         print(f"\n[!] Erro no áudio/avatar: {e}")
+    finally:
+        avatar.set_talking(False)
 
-# 5. Loop Principal
+def play_feedback_sound(filename):
+    """Toca um som de feedback para o usuário"""
+    try:
+        pygame.mixer.music.load(f"speech/sounds/{filename}")
+        pygame.mixer.music.play()
+    except Exception as e:
+        print(f"\n[!] Erro ao tocar som de feedback: {e}")
+
 async def main_loop():
     historico = []
     print("\n>>> Jarvis Online. Aguardando comandos, senhor. (CTRL+C para sair)")
 
     while True:
         try:
+            while avatar.is_talking:
+                await asyncio.sleep(0.5)
+
             entrada = listener.listen()
         
-            if not entrada:
-                continue # Se não ouviu nada, volta a ouvir
+            if not entrada or len(entrada.strip()) < 2:
+                continue 
 
             print(f"VOCÊ: {entrada}")
             

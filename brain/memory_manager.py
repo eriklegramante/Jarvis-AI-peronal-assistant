@@ -8,14 +8,12 @@ class JarvisBrain:
     def _initialize_db(self):
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            # Tabela para fatos sobre o usuário
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS user_profile (
                     key TEXT PRIMARY KEY,
                     value TEXT
                 )
             ''')
-            # Tabela para histórico de mensagens simplificado
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS chat_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
