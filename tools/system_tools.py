@@ -1,7 +1,8 @@
 from langchain_core.tools import tool
 from datetime import datetime
 import os
-
+import shutil
+import platform
 
 class SystemManager:
     def __init__(self, username="Senhor"):
@@ -10,7 +11,7 @@ class SystemManager:
     def fetch_tools(self):
         """
         Gera e retorna a lista de ferramentas. 
-        Definir as funções aqui dentro permite que elas usem o 'self.username'.
+        As funções internas utilizam o 'self.username'.
         """
         
         @tool
@@ -20,62 +21,64 @@ class SystemManager:
         
         @tool
         def check_disk_space():
-            """Verifica o espaço em disco disponível."""
-            import shutil
+            """Verifica o espaço em disco disponível no sistema."""
             total, used, free = shutil.disk_usage("/")
+            
+            # Cálculo de conversão para GB
+            total_gb = total // (2**30)
+            used_gb = used // (2**30)
+            free_gb = free // (2**30)
 
-            print(f"Espaço total: {total // (2**30)} GB")
-            print(f"Espaço usado: {used // (2**30)} GB")
-            print(f"Espaço livre: {free // (2**30)} GB")
+            return (f"Espaço total: {total_gb} GB, "
+                    f"Espaço usado: {used_gb} GB, "
+                    f"Espaço livre: {free_gb} GB")
     
         @tool
-        def get_date(cidade: str):
+        def get_date_by_city(city: str):
             """Retorna a data e hora atual. Útil para quando o usuário pergunta que dia é hoje ou a hora."""
-            data_atual = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-            return f"A data e hora atual (baseada no sistema) para {cidade} é: {data_atual}"
+            current_date = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+            return f"A data e hora atual (baseada no sistema) para {city} é: {current_date}"
 
-        @tool #não está fazendo verificação real, mas é um exemplo de como você poderia implementar isso...
-        def verification_user(user: str):
+        @tool
+        def verify_user_access(user: str):
             """Verifica se o usuário é autorizado a usar o Jarvis."""
-            # Você pode mudar "Root" para o seu nome de usuário
-            usuarios_autorizados = ["root", "legramante"] 
-            if user.lower() in usuarios_autorizados:
+            authorized_users = ["root", "legramante"] 
+            if user.lower() in authorized_users:
                 return f"Usuário {user} verificado. Acesso concedido."
             else:
                 return f"Usuário {user} não autorizado. Protocolo de segurança ativado."
             
         @tool
-        def list_files(diretorio: str):
+        def list_directory_files(directory_path: str):
             """Lista os arquivos em um diretório específico."""
             try:
-                arquivos = os.listdir(diretorio)
-                return f"Arquivos em {diretorio}: {', '.join(arquivos)}"
+                files = os.listdir(directory_path)
+                return f"Arquivos em {directory_path}: {', '.join(files)}"
             except Exception as e:
-                return f"Erro ao listar arquivos em {diretorio}: {str(e)}"
+                return f"Erro ao listar arquivos em {directory_path}: {str(e)}"
 
         @tool
-        def get_system_info():
-            """Retorna informações básicas do sistema."""
-            import platform
-            info = {
+        def get_system_specs():
+            """Retorna informações básicas do sistema e hardware."""
+            specs = {
                 "Sistema Operacional": platform.system(),
                 "Versão": platform.version(),
                 "Arquitetura": platform.architecture()[0],
                 "Processador": platform.processor()
             }
-            return info
+            return specs
         
         @tool
-        def get_date_time():
+        def get_current_datetime():
             """Retorna a data e hora atual do sistema."""
             return datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         
         return [
             get_personal_info, 
             check_disk_space, 
-            get_date, 
-            verification_user, 
-            list_files, 
-            get_system_info,
-            get_date_time
+            get_date_by_city, 
+            verify_user_access, 
+            list_directory_files, 
+            get_system_specs,
+            get_current_datetime
         ]
