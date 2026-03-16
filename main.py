@@ -1,11 +1,9 @@
 import os
-import time
 import threading
 import asyncio
 from dotenv import load_dotenv
 import re
 import pygame
-import random
 
 #langchain imports
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -19,14 +17,13 @@ from logs.logger import setup_logger
 from ui.avatar import JarvisAvatar
 from speech.listener import JarvisListener
 
-
 load_dotenv()
 logger = setup_logger()
 
 pygame.init()
 pygame.mixer.init()
 
-avatar = JarvisAvatar("ui/assets")
+avatar = JarvisAvatar("ui/assets/scifiui2.gif")
 
 listener = JarvisListener(model_size="tiny")
 tools_do_jarvis = get_all_jarvis_tools(username="Root")
@@ -58,8 +55,8 @@ try:
 except Exception as e:
     logger.error(f"Erro crítico na inicialização: {e}")
 
+
 def clean_text_for_speech(text):
-    """Garante que o texto seja uma string e remove Markdown."""
     text = str(text) 
     text = text.replace("*", "").replace("#", "").replace("`", "")
     text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)
@@ -67,7 +64,6 @@ def clean_text_for_speech(text):
     return text
 
 def play_voice_background(text):
-    """Controla a animação de fala simultânea ao áudio."""
     try:
         avatar.set_talking(True)
         speaker = JarvisSpeaker()
@@ -80,96 +76,77 @@ def play_voice_background(text):
     finally:
         avatar.set_talking(False)
 
-def play_random_feedback():
-    sounds = ["acordei.mp3", "aoba.mp3", "cheguei.mp3","diga.mp3", "pode_falar.mp3"]
-    chosen = random.choice(sounds)
-    sound = pygame.mixer.Sound(f"speech/sounds/{chosen}")
-    ch = sound.play()
-    return ch
 
 async def main_loop():
     historico = []
-    gatilhos = ["jarvis", "ok jarvis", "olá jarvis", "hey jarvis"]
-    print("\n>>> Jarvis Online. Aguardando comandos, senhor.")
+    print("\n>>> Jarvis Online. Escuta contínua ativada.")
 
     while True:
         try:
-            while avatar.is_talking:
-                await asyncio.sleep(0.05)
+            while avatar.is_talking or pygame.mixer.get_busy():
+                await asyncio.sleep(0.1)
 
-            entrada_bruta = await asyncio.to_thread(listener.listen)
-
+            entrada_bruta = listener.listen()
+            
             if not entrada_bruta or len(entrada_bruta.strip()) < 2:
-                continue
+                continue 
 
-            entrada_lower = entrada_bruta.lower()
+            pergunta = entrada_bruta.strip()
+            print(f"VOCÊ: {pergunta}")
 
-            if any(g in entrada_lower for g in gatilhos):
-                avatar.current_state = "listening"
+            if any(cmd in pergunta.lower() for cmd in ["sair", "desligar", "encerrar"]):
+                break
 
-                duration = play_random_feedback()
-                await asyncio.sleep(duration)
+            loop = asyncio.get_event_loop()
+            resultado = await loop.run_in_executor(
+                None, 
+                lambda: agent_executor.invoke({"input": pergunta, "chat_history": historico})
+            )
 
-                await asyncio.sleep(duration + 0.1)
-                await asyncio.to_thread(listener.reset_noise, 0.3)
+            resposta = resultado.get('output', "")
+            
+            if isinstance(resposta, list) and len(resposta) > 0:
+                resposta = resposta[0].get('text', str(resposta))
+            elif isinstance(resposta, dict):
+                resposta = resposta.get('text', str(resposta))
+            
+            print(f"JARVIS: {resposta}")
 
-                pergunta = await asyncio.to_thread(listener.listen)
-                print(">>> TRANSCRICAO PERGUNTA:", repr(pergunta))
-                if not pergunta.strip():
-                    continue
+            texto_limpo = clean_text_for_speech(resposta)
+            threading.Thread(target=play_voice_background, args=(texto_limpo,), daemon=True).start()
 
-                pergunta = await asyncio.to_thread(listener.listen)
-                if not pergunta or len(pergunta.strip()) < 2:
-                    print("[Standby] Nenhuma pergunta detectada após o wake word.")
-                    continue
-
-                comando_limpo = pergunta.strip()
-                print(f"PROCESSANDO: {comando_limpo}")
-
-                resultado = agent_executor.invoke({
-                    "input": comando_limpo,
-                    "chat_history": historico
-                })
-
-                resposta = resultado.get("output", "")
-                if isinstance(resposta, list) and resposta:
-                    resposta = resposta[0].get("text", str(resposta))
-
-                print(f"\nJARVIS: {resposta}")
-
-                texto_limpo = clean_text_for_speech(resposta)
-                threading.Thread(target=play_voice_background, args=(texto_limpo,), daemon=True).start()
-
-                historico.append(("human", comando_limpo))
-                historico.append(("ai", resposta))
-
-            else:
-                print(f"[Standby] Ouvi: {entrada_bruta}")
+            historico.append(("human", pergunta))
+            historico.append(("ai", resposta))
 
         except Exception as e:
-            logger.error(f"Falha no ciclo: {e}")
+            logger.error(f"Erro no ciclo: {e}")
             await asyncio.sleep(1)
 
 def chat_thread():
     asyncio.run(main_loop()) 
 
 if __name__ == "__main__":
-    thread_jarvis = threading.Thread(target=chat_thread, daemon=True)
-    thread_jarvis.start()
+    try:
+        # Inicia a thread do Jarvis
+        thread_jarvis = threading.Thread(target=chat_thread, daemon=True)
+        thread_jarvis.start()
 
-    running = True
-    clock = pygame.time.Clock()
+        running = True
+        clock = pygame.time.Clock()
 
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-        
-        try:
+        while running:
+            # Essencial para a janela não "congelar" no Linux
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+            # Renderiza o GIF
             avatar.draw()
-        except Exception as e:
-            pass
             
-        clock.tick(30) 
+            # Controla os frames
+            clock.tick(30)
 
-    pygame.quit()
+    except KeyboardInterrupt:
+        print("\n[!] Protocolo de encerramento manual ativado.")
+    finally:
+        pygame.quit()

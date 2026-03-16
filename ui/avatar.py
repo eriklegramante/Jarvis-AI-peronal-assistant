@@ -1,67 +1,71 @@
 import pygame
 import os
+from PIL import Image 
 
 class JarvisAvatar:
-    def __init__(self, base_path="ui/assets/avatar"):
-        self.screen = pygame.display.set_mode((300, 300), pygame.NOFRAME | pygame.SRCALPHA)
-        
-        # Atributos de controle
+    def __init__(self, gif_path="ui/assets/scifiui2.gif"):
+        self.screen = pygame.display.set_mode((800, 800), pygame.NOFRAME | pygame.SRCALPHA | pygame.DOUBLEBUF)
+        self.screen.set_colorkey((0, 0, 0)) 
+
         self.current_state = "idle"
         self.is_talking = False
         self.frame_index = 0
+        self.animation_speed = 0.5 
         
-        # Carregamento dos Ativos
-        self.assets = {
-            "idle": self._load_frames(f"{base_path}/idle"),
-            "talking": self._load_frames(f"{base_path}/talking"),
-            "listening": self._load_frames(f"{base_path}/listening")
-        }
+        self.frames = self._load_gif_frames(gif_path)
 
-    def _load_frames(self, path):
-        """Carrega PNGs garantindo transparência."""
+    def _load_gif_frames(self, path):
         frames = []
         if os.path.exists(path):
-            files = sorted([f for f in os.listdir(path) if f.endswith('.png')])
-            for f in files:
-                img = pygame.image.load(os.path.join(path, f)).convert_alpha()
-                frames.append(img)
-        return frames if frames else [pygame.Surface((300, 300), pygame.SRCALPHA)]
-
-    def play_idle(self):
-        """Animação de repouso: respiração suave e piscadas."""
-        self.current_state = "idle"
-        self._animate(speed=0.1) 
-
-    def play_talking(self):
-        """Animação de fala: sincronizada com a saída de áudio."""
-        self.current_state = "talking"
-        self._animate(speed=0.25) 
-
-    def play_listening(self):
-        """Animação de escuta: sinaliza que o microfone está ativo."""
-        self.current_state = "listening"
-        self._animate(speed=0.15)
-
-    def _animate(self, speed):
-        """Lógica interna para girar os frames do estado atual."""
-        frames = self.assets.get(self.current_state)
-        self.frame_index = (self.frame_index + speed) % len(frames)
-        img = frames[int(self.frame_index)]
+            try:
+                img_gif = Image.open(path)
+                for frame_num in range(img_gif.n_frames):
+                    img_gif.seek(frame_num)
+                    
+                    frame_rgba = img_gif.convert("RGBA")
+                    data = frame_rgba.tobytes()
+                    size = frame_rgba.size
+                    
+                    pygame_surface = pygame.image.fromstring(data, size, "RGBA").convert_alpha()
+                    frames.append(pygame_surface)
+                print(f">>> {len(frames)} frames carregados do GIF.")
+            except Exception as e:
+                print(f"[!] Erro ao carregar GIF: {e}")
         
-        self.screen.fill((0, 0, 0, 0))
-        self.screen.blit(img, (0, 0))
-        pygame.display.flip()
+        return frames if frames else [pygame.Surface((800, 800), pygame.SRCALPHA)]
 
     def draw(self):
-        """O Loop principal decide qual ação executar."""
-        if self.is_talking:
-            self.play_talking()
-        elif self.current_state == "listening":
-            self.play_listening()
-        else:
-            self.play_idle()
+            """Renderiza o frame atual com efeito de pulsação quando fala."""
+            self.screen.fill((0, 0, 0, 0)) 
+            
+            # 1. Velocidade da animação dos frames
+            speed = self.animation_speed * 1.5 if self.is_talking else self.animation_speed
+            self.frame_index = (self.frame_index + speed) % len(self.frames)
+            img = self.frames[int(self.frame_index)]
+            
+            # 2. LÓGICA DE PULSAÇÃO (Reação à fala)
+            if self.is_talking:
+                import math
+                import time
+                
+                # Cria uma onda baseada no tempo para o efeito de "respiração/vibração"
+                # Pulsa entre 1.0 e 1.05 (5% de zoom)
+                pulse = 1.0 + (math.sin(time.time() * 15) * 0.05) 
+                
+                new_size = (int(800 * pulse), int(800 * pulse))
+                # Redimensiona o frame atual para dar efeito de zoom
+                img = pygame.transform.smoothscale(img, new_size)
+                
+                # Centraliza o frame maior na tela de 800x800
+                offset_x = (new_size[0] - 800) // 2
+                offset_y = (new_size[1] - 800) // 2
+                self.screen.blit(img, (-offset_x, -offset_y))
+                
+            else:
+                self.screen.blit(img, (0, 0))
+                
+            pygame.display.flip()
 
     def set_talking(self, state: bool):
-        """Interface para o main.py controlar a fala."""
+        """Altera o estado para quando o Jarvis estiver falando."""
         self.is_talking = state
-        if not state: self.frame_index = 0 

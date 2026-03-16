@@ -10,22 +10,6 @@ class JarvisListener:
         self.recognizer = sr.Recognizer()
         self.microphone = sr.Microphone(sample_rate=16000)
 
-    def wait_for_wake_word(self, wake_words=["jarvis", "ok jarvis"]):
-        """Fica em standby monitorando apenas a palavra de ativação."""
-        with self.microphone as source:
-            self.recognizer.adjust_for_ambient_noise(source, duration=0.5)
-            try:
-                audio = self.recognizer.listen(source, timeout=None, phrase_time_limit=3)
-                audio_data = io.BytesIO(audio.get_wav_data())
-                
-                segments, _ = self.model.transcribe(audio_data, language="pt", beam_size=1)
-                text = "".join([s.text for s in segments]).lower().strip()
-                
-                return any(word in text for word in wake_words)
-            except:
-                return False        
-    
-
     def listen(self):
         """Sua função atual, otimizada para comandos complexos."""
         with self.microphone as source:

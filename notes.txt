@@ -1,5 +1,5 @@
-Gerando erro ao enviar segundo input, não responde 
-
 Avatar funcionando, porém, fundo transparente não funcionando
 
-Possivel erro de lógica no mainloop (certezakkk)
+Gatilho retirado, bagunçou a logica e a resposta do jarvis não chegava após o gatilho, será implementado mais para frente.
+
+novo avatar baixado, será implementado em breve
