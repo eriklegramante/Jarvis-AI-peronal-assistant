@@ -27,7 +27,6 @@ class SystemManager:
             """Verifica o espaço em disco disponível no sistema."""
             total, used, free = shutil.disk_usage("/")
             
-            # Cálculo de conversão para GB
             total_gb = total // (2**30)
             used_gb = used // (2**30)
             free_gb = free // (2**30)

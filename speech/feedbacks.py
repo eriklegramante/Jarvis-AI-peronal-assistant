@@ -15,4 +15,4 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
 
-#Apeans rodar esse modulo para gerar os arquivos de áudio de feedback. Ele usa a voz "AntonioNeural" do Azure TTS, mas você pode escolher outra voz brasileira se preferir. Os arquivos serão salvos na pasta "speech/sounds/" com os nomes especificados.
+#Apeans rodar esse modulo para gerar os arquivos de áudio de feedback. Ele usa a voz "Francisca Neural" do Azure TTS, mas você pode escolher outra voz brasileira se preferir. Os arquivos serão salvos na pasta "speech/sounds/" com os nomes especificados.

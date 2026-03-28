@@ -9,3 +9,6 @@ __pycache__/
 # Logs e Dados locais
 logs/
 memory_store.db
+
+# atlas - Não irei subir o novo avatar, fiz com gifs e ficou pesado, caso tenha interesse em continuar com o meu projeto entre em contato que eu envio o pacote faltante
+ui/assets/

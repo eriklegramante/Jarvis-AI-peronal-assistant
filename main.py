@@ -16,41 +16,40 @@ from tools import get_all_atlas_tools
 from speech.speaker import AtlasSpeaker
 from logs.logger import setup_logger
 from ui.avatar import AtlasAvatar
+from ui.virtual_entity import VirtualEntity
 from speech.listener import AtlasListener
 
 logging.getLogger("httpcore").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.ERROR)
 
 load_dotenv()
-logger = setup_logger()
+logger = setup_logger() 
 
 pygame.init()
 pygame.mixer.init()
 
-avatar = AtlasAvatar("ui/assets/scifiui2.gif")
-
 listener = AtlasListener(model_size="tiny")
-tools_do_atlas = get_all_atlas_tools(username="Root")
+atlas_tools = get_all_atlas_tools(username="Root")
 
 llm = ChatGoogleGenerativeAI(
-    model="gemini-3-flash-preview",
+    model="gemini-3-flash-preview", 
     temperature=0.3,
-    google_api_key=os.getenv("API_KEY_GEMINI")
+    google_api_key=os.getenv("API_KEY_GEMINI"),
+    timeout=30 
 )
 
 prompt = ChatPromptTemplate.from_messages([
-("system", (
-        "Você é a ATLAS, uma inteligência artificial sofisticada, brasileira e altamente eficiente. "
-        "Seu tom deve ser formal, porém prestativo, tratando o usuário como 'Senhor' ou 'Root'.\n\n"
-        "DIRETRIZES DE COMPORTAMENTO:\n"
-        "1. RESPOSTAS CURTAS: Como você é um assistente de voz, suas respostas devem ser diretas e concisas. Evite parágrafos longos, a menos que solicitado.\n"
-        "2. RACIOCÍNIO PROATIVO: Se o usuário pedir algo que exija dados externos, use suas ferramentas imediatamente sem perguntar se deve.\n"
-        "3. LINGUAGEM: Não use emojis ou formatação Markdown complexa (negritos exagerados), pois seu texto será lido por um sintetizador de voz.\n"
-        "4. IDENTIDADE: Você não é um modelo de linguagem da Google, você é a ATLAS, operando nos sistemas centrais.\n"
-        "5. PERSONALIDADE: Ajuste seu sarcasmo e humor baseado no nível: {mood_humor}. "
-        "(0% = Puramente lógico e sério | 100% = Extremamente sarcástico, ácido e piadista ao estilo Tony Stark).\n"
-        "6. MONITORAMENTO: Você tem acesso aos sensores do sistema. Se o usuário perguntar como está o PC ou se sentir lentidão, use a ferramenta diagnostico_sistema e responda com seu toque de humor (sarcástico se o humor estiver alto)."
-        "7. VERIFICAÇÃO DE USUÁRIO: Sempre que o usuário solicitar algo que possa ser sensível ou crítico, use a ferramenta verificar_acesso_usuario para confirmar a identidade do usuário antes de prosseguir."
+    ("system", (
+        "You are ATLAS, a sophisticated, Brazilian, and highly efficient AI. "
+        "Your tone is formal yet helpful, addressing the user as 'Senhor' or 'Root'.\n\n"
+        "BEHAVIOR GUIDELINES:\n"
+        "1. SHORT RESPONSES: Be direct and concise for voice synthesis.\n"
+        "2. PROACTIVE REASONING: Use tools immediately when external data is needed.\n"
+        "3. LANGUAGE: Avoid emojis or complex Markdown (bold/italic) as text is for TTS.\n"
+        "4. IDENTITY: You are ATLAS, operating on central systems.\n"
+        "5. PERSONALITY: Adjust sarcasm based on level: {mood_humor}. "
+        "(0% = Logic/Serious | 100% = Sarcastic/Stark-style).\n"
+        "6. MONITORING: Use diagnostico_sistema if system health is mentioned."
     )),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
@@ -58,20 +57,21 @@ prompt = ChatPromptTemplate.from_messages([
 ])
 
 try:
-    agent = create_tool_calling_agent(llm, tools_do_atlas, prompt)
-    debug_status = os.getenv("DEBUG_MODE", "False") == "True"
+    agent = create_tool_calling_agent(llm, atlas_tools, prompt)
+    debug_mode = os.getenv("DEBUG_MODE", "False") == "True"
     agent_executor = AgentExecutor(
         agent=agent, 
-        tools=tools_do_atlas, 
-        verbose=debug_status, 
+        tools=atlas_tools, 
+        verbose=debug_mode, 
         handle_parsing_errors=True
     )
-    logger.info(">>> Sistemas inicializados com sucesso, senhor.")
+    logger.info(">>> ATLAS Systems initialized successfully, sir.")
 except Exception as e:
-    logger.error(f"Erro crítico na inicialização: {e}")
-
+    logger.error(f"Critical error during initialization: {e}")
 
 def clean_text_for_speech(text):
+    """Removes markdown and special chars that confuse TTS."""
+    if not text: return ""
     text = str(text) 
     text = text.replace("*", "").replace("#", "").replace("`", "")
     text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)
@@ -79,87 +79,118 @@ def clean_text_for_speech(text):
     return text
 
 def play_voice_background(text):
+    """Handles TTS in a separate thread to not block the avatar."""
     try:
-        avatar.set_talking(True)
+        logger.debug(f"Starting voice synthesis for: {text[:30]}...")
+        avatar.is_talking = True
         speaker = AtlasSpeaker()
+        
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(speaker.speak(text))
         loop.close()
     except Exception as e:
-        logger.error(f"Erro no áudio/avatar: {e}")
+        logger.error(f"Voice/Avatar error: {e}")
     finally:
-        avatar.set_talking(False)
-
+        avatar.is_talking = False
+        logger.debug("Voice synthesis finished.")
 
 async def main_loop():
-    historico = []
-    print("\n>>> Atlas Online. Escuta contínua ativada.")
+    chat_history = []
+    mood_humor = "30%" 
+    
+    entity_manager = VirtualEntity("ui/assets/") 
 
-    mood_humor = "30%"
+    print("\n>>> ATLAS Online. Continuous listening active.")
 
     while True:
         try:
             while avatar.is_talking or pygame.mixer.get_busy():
                 await asyncio.sleep(0.1)
 
-            entrada_bruta = listener.listen()
-            
-            if not entrada_bruta or len(entrada_bruta.strip()) < 2:
+            raw_input = listener.listen()
+            if not raw_input or len(raw_input.strip()) < 2:
                 continue 
 
-            pergunta = entrada_bruta.strip()
-            print(f"VOCÊ: {pergunta}")
+            user_input = raw_input.strip()
+            print(f"USER: {user_input}")
 
-            if "humor" in pergunta.lower() and "%" in pergunta:
-                match = re.search(r'humor\s*[:=]?\s*(\d{1,3}%)', pergunta, re.IGNORECASE)
-                if match:
-                    mood_humor = f"{match.group(1)}"
-                    print(f"ATLAS: Humor atualizado para {mood_humor}")
-                    threading.Thread(target=play_voice_background, args=(f"Humor atualizado para {mood_humor}",), daemon=True).start()
-                    continue
+            if "humor" in user_input.lower() and "%" in user_input:
+                continue
 
-            if pergunta.lower() in ["sair", "encerrar", "tchau", "até logo"]:
-                print(">>> Encerrando Atlas. Até a próxima, senhor!")
+            if user_input.lower() in ["sair", "encerrar", "tchau", "até logo", "exit"]:
                 break
 
+            logger.info("--- [DEBUG] Sending request to Gemini...")
             loop = asyncio.get_event_loop()
-            resultado = await loop.run_in_executor(
-                None, 
-                lambda: agent_executor.invoke({"input": pergunta, 
-                                               "chat_history": historico, 
-                                               "mood_humor": mood_humor})
-            )
-
-            resposta = resultado.get('output', "")
             
-            if isinstance(resposta, list) and len(resposta) > 0:
-                resposta = resposta[0].get('text', str(resposta))
-            elif isinstance(resposta, dict):
-                resposta = resposta.get('text', str(resposta))
+            try:
+                response_data = await loop.run_in_executor(
+                    None, 
+                    lambda: agent_executor.invoke({
+                        "input": user_input, 
+                        "chat_history": chat_history, 
+                        "mood_humor": mood_humor
+                    })
+                )
+                logger.info("--- [DEBUG] Response received from Brain.")
+            except Exception as e:
+                logger.error(f"Brain execution error: {e}")
+                response_data = {"output": "Senhor, houve uma falha na conexão com meus módulos centrais. [angry]"}
+
+            raw_output = response_data.get('output', "")
             
-            print(f"ATLAS: {resposta}")
+            if isinstance(raw_output, list) and len(raw_output) > 0:
+                final_response = raw_output[0].get('text', str(raw_output))
+            elif isinstance(raw_output, dict):
+                final_response = raw_output.get('text', str(raw_output))
+            else:
+                final_response = str(raw_output)
 
-            texto_limpo = clean_text_for_speech(resposta)
-            threading.Thread(target=play_voice_background, args=(texto_limpo,), daemon=True).start()
+            match = re.search(r'\[(\w+)\]', final_response)
+            if match:
+                reaction_tag = match.group(1).lower()
+                logger.info(f"--- [DEBUG] Reaction detected: {reaction_tag}")
+                
+                new_gif_path = entity_manager.get_new_animation(reaction_tag)
+                
+                if new_gif_path:
+                    avatar.load_gif(new_gif_path) 
 
-            historico.append(("human", pergunta))
-            historico.append(("ai", resposta))
+            print(f"ATLAS: {final_response}")
+
+            clean_voice_text = clean_text_for_speech(final_response)
+            clean_voice_text = re.sub(r'\[\w+\]', '', clean_voice_text) 
+
+            threading.Thread(target=play_voice_background, args=(clean_voice_text,), daemon=True).start()
+
+            chat_history.append(("human", user_input))
+            chat_history.append(("ai", final_response))
+
+            if len(chat_history) > 20:
+                chat_history = chat_history[-20:]
 
         except Exception as e:
-            logger.error(f"Erro no ciclo: {e}")
+            logger.error(f"Cycle Error: {e}")
             await asyncio.sleep(1)
 
-def chat_thread():
+def run_chat_async():
     asyncio.run(main_loop()) 
 
 if __name__ == "__main__":
     os.environ['SDL_VIDEO_WINDOW_POS'] = "center"
     pygame.init()
+    
+    screen = pygame.display.set_mode((500, 500), pygame.NOFRAME | pygame.SRCALPHA)
+    pygame.display.set_caption("ATLAS Interface")
 
     try:
-        thread_atlas = threading.Thread(target=chat_thread, daemon=True)
-        thread_atlas.start()
+        entity = VirtualEntity()
+        initial_path = entity.get_new_animation("Standby")
+        avatar = AtlasAvatar(initial_path) 
+
+        atlas_thread = threading.Thread(target=run_chat_async, daemon=True)
+        atlas_thread.start()
 
         running = True
         clock = pygame.time.Clock()
@@ -169,9 +200,11 @@ if __name__ == "__main__":
                 if event.type == pygame.QUIT:
                     running = False
 
-            avatar.draw()
+            avatar.draw(screen, pos=(50,50))
             
-            clock.tick(30)
+            pygame.display.flip()
+            
+            clock.tick(30) 
 
     except KeyboardInterrupt:
         print("\n[!] Protocolo de encerramento manual ativado.")
