@@ -36,13 +36,13 @@ Acompanhamento do progresso das funcionalidades:
     - [x] Verificação de status do sistema e usuários.
 - [ ] **Fase 3: Web & Knowledge** (Em progresso)
     - [x] Integração com DuckDuckGo Search.
-    - [ ] Ferramenta de leitura de documentação web.
-- [ ] **Fase 4: Memory & Persistence**
-    - [ ] Implementação de SQLite/ChromaDB na pasta `/brain`.
-    - [ ] Memória contextual entre sessões.
-- [ ] **Fase 5: Speech Interface**
-    - [ ] Integração Whisper (STT).
-    - [ ] Integração ElevenLabs ou Edge-TTS (TTS).
+    - [x] Ferramenta de leitura de documentação web.
+- [x] **Fase 4: Memory & Persistence**
+    - [x] Implementação de SQLite/ChromaDB na pasta `/brain`.
+    - [x] Memória contextual entre sessões.
+- [x] **Fase 5: Speech Interface**
+    - [x] Integração Whisper (STT).
+    - [x] Integração ElevenLabs ou Edge-TTS (TTS).
 
 ---
 
